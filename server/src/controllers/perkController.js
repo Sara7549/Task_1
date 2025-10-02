@@ -1,4 +1,4 @@
-import Joi from 'joi';
+ import Joi from 'joi';
 import { Perk } from '../models/Perk.js';
 
 // validation schema for creating/updating a perk
@@ -70,7 +70,29 @@ export async function createPerk(req, res, next) {
 // TODO
 // Update an existing perk by ID and validate only the fields that are being updated 
 export async function updatePerk(req, res, next) {
-  
+   try {
+    // Allow partial validation (only fields that exist in req.body)
+    const { value, error } = perkSchema.validate(req.body, { presence: 'optional' });
+    if (error) return res.status(400).json({ message: error.message });
+
+    // Find and update the perk
+    const updatedPerk = await Perk.findByIdAndUpdate(
+      req.params.id,
+      { $set: value },
+      { new: true, runValidators: true } // return updated doc & apply schema validators
+    );
+
+    if (!updatedPerk) {
+      return res.status(404).json({ message: 'Perk not found' });
+    }
+
+    res.json({ perk: updatedPerk });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'Duplicate perk for this merchant' });
+    }
+    next(err);
+  }
 }
 
 
